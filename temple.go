@@ -18,6 +18,7 @@ type Temple struct {
 	root      string
 	lock      sync.RWMutex
 	templates map[string]*Template
+	files     []string
 }
 
 // Get gets a Template by name.
@@ -35,30 +36,44 @@ func (t *Temple) GetOK(name string) (*Template, bool) {
 	return tpl, ok
 }
 
+// Root gets the root directory for the templates.
+func (t *Temple) Root() string {
+	return t.root
+}
+
+// Files gets the template files that were loaded.
+func (t *Temple) Files() []string {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+	return t.files
+}
+
 // Reload reloads all templates.
 func (t *Temple) Reload() error {
-	err := filepath.Walk(t.root, func(p string, info os.FileInfo, err error) error {
+	root := t.Root()
+	err := filepath.Walk(root, func(p string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 		if !info.IsDir() {
 			return nil // skip-non directories
 		}
-		if t.root == p {
+		if root == p {
 			return nil // skip root
 		}
-		rel, err := filepath.Rel(t.root, p)
+		rel, err := filepath.Rel(root, p)
 		if err != nil {
 			return err
 		}
 		name := strings.Replace(rel, "/", ".", -1)
 		// process the template
 		tpl := &Template{}
-		if err := tpl.parse(t.root, p); err != nil {
+		if err := tpl.parse(root, p); err != nil {
 			return err
 		}
 		t.lock.Lock()
 		t.templates[name] = tpl
+		t.files = append(t.files, tpl.Files...)
 		t.lock.Unlock()
 		return nil
 	})
@@ -86,21 +101,23 @@ type Template struct {
 	// RootTemplateName is the name of the template that will be
 	// rendered when Execute is called.
 	RootTemplateName string
+	// Files represents the files that make up this template.
+	Files []string
 }
 
 // Execute applies a parsed template to the specified data object, writing the output to wr.
 // It calls ExecuteTemplate on the underlying Template with the appropriate
 // RootTemplateName.
-func (c *Template) Execute(wr io.Writer, data interface{}) error {
-	return c.Template.ExecuteTemplate(wr, c.RootTemplateName, data)
+func (t *Template) Execute(wr io.Writer, data interface{}) error {
+	return t.Template.ExecuteTemplate(wr, t.RootTemplateName, data)
 }
 
-func (c *Template) parse(root, path string) error {
-	if c.Template == nil {
-		c.Template = template.New(defaultRootTemplateName)
+func (t *Template) parse(root, path string) error {
+	if t.Template == nil {
+		t.Template = template.New(defaultRootTemplateName)
 	}
-	if c.foundlist == nil {
-		c.foundlist = make(map[string]struct{})
+	if t.foundlist == nil {
+		t.foundlist = make(map[string]struct{})
 	}
 	items, err := ioutil.ReadDir(path)
 	if err != nil {
@@ -113,25 +130,26 @@ func (c *Template) parse(root, path string) error {
 		if isTempleFile(item.Name()) {
 			name := templateName(item.Name())
 			// skip it if we already have it
-			if _, present := c.foundlist[name]; present {
+			if _, present := t.foundlist[name]; present {
 				continue
 			}
 			// base always becomes the entry template
-			if len(c.RootTemplateName) == 0 || name == "base" {
-				c.RootTemplateName = name
+			if len(t.RootTemplateName) == 0 || name == "base" {
+				t.RootTemplateName = name
 			}
 			filepath := filepath.Join(path, item.Name())
+			t.Files = append(t.Files, filepath)
 			b, err := ioutil.ReadFile(filepath)
 			if err != nil {
 				return err
 			}
 			s := string(b)
 			s = "{{define \"" + name + "\"}}" + s + "{{end}}"
-			_, err = c.Parse(s)
+			_, err = t.Parse(s)
 			if err != nil {
 				return err
 			}
-			c.foundlist[name] = struct{}{}
+			t.foundlist[name] = struct{}{}
 		}
 	}
 	relpath, err := filepath.Rel(root, path)
@@ -141,7 +159,7 @@ func (c *Template) parse(root, path string) error {
 	if relpath != "." {
 		// we haven't reached root - keep climbing
 		up := filepath.Dir(path)
-		if err := c.parse(root, up); err != nil {
+		if err := t.parse(root, up); err != nil {
 			return err
 		}
 	}
