@@ -15,7 +15,8 @@ const defaultRootTemplateName = "_entry"
 // names.
 type Temple map[string]*Template
 
-// Process processes the root temple folder.
+// Process walks directories starting at root and generates a Temple
+// object containing all compiled templates.
 func Process(root string) (Temple, error) {
 	temple := make(Temple)
 	err := filepath.Walk(root, func(p string, info os.FileInfo, err error) error {
