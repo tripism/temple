@@ -1,2 +1,2 @@
 # temple
-Mini-framework for Go templates
+Directory based template inheritance for Golang.
