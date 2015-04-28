@@ -1,1 +1,1 @@
-<base>{{ template "content" . }}</base>
+<base>{{ template "content" . }}</base>{{ template "extra" }}

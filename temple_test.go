@@ -14,15 +14,16 @@ func TestTemple(t *testing.T) {
 	tpl, err := temple.New("test")
 	is.NoErr(err)
 	is.OK(tpl)
-	is.OK(tpl["site.welcome.about.nested"])
+	_, ok := tpl.GetOK("site.welcome.about.nested")
+	is.True(ok)
 
 	data := map[string]interface{}{"Name": "Mat"}
 	var buf bytes.Buffer
-	is.NoErr(tpl["site.welcome.about.nested"].Execute(&buf, data))
+	is.NoErr(tpl.Get("site.welcome.about.nested").Execute(&buf, data))
 	is.Equal(buf.String(), `<base>Hello Mat.</base>`)
 
 	buf.Reset()
-	is.NoErr(tpl["site.welcome"].Execute(&buf, data))
+	is.NoErr(tpl.Get("site.welcome").Execute(&buf, data))
 	is.Equal(buf.String(), `<base>Welcome</base>`)
 
 }

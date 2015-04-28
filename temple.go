@@ -7,45 +7,76 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
-const defaultRootTemplateName = "_entry"
+const defaultRootTemplateName = "temple"
 
 // Temple represents a map of Templates keyed by their dot notation
 // names.
-type Temple map[string]*Template
+type Temple struct {
+	root      string
+	lock      sync.RWMutex
+	templates map[string]*Template
+}
 
-// New walks directories starting at root and generates a Temple
-// object containing all compiled templates.
-func New(root string) (Temple, error) {
-	temple := make(Temple)
-	err := filepath.Walk(root, func(p string, info os.FileInfo, err error) error {
+// Get gets a Template by name.
+func (t *Temple) Get(name string) *Template {
+	tpl, _ := t.GetOK(name)
+	return tpl
+}
+
+// GetOK gets a Template by name and returns whether one
+// was found or not.
+func (t *Temple) GetOK(name string) (*Template, bool) {
+	t.lock.RLock()
+	defer t.lock.RUnlock()
+	tpl, ok := t.templates[name]
+	return tpl, ok
+}
+
+// Reload reloads all templates.
+func (t *Temple) Reload() error {
+	err := filepath.Walk(t.root, func(p string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 		if !info.IsDir() {
 			return nil // skip-non directories
 		}
-		if root == p {
+		if t.root == p {
 			return nil // skip root
 		}
-		rel, err := filepath.Rel(root, p)
+		rel, err := filepath.Rel(t.root, p)
 		if err != nil {
 			return err
 		}
 		name := strings.Replace(rel, "/", ".", -1)
 		// process the template
 		tpl := &Template{}
-		if err := tpl.parse(root, p); err != nil {
+		if err := tpl.parse(t.root, p); err != nil {
 			return err
 		}
-		temple[name] = tpl
+		t.lock.Lock()
+		t.templates[name] = tpl
+		t.lock.Unlock()
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return temple, nil
+	return nil
+}
+
+// New walks directories starting at root and generates a Temple
+// object containing all compiled templates.
+func New(root string) (*Temple, error) {
+	temple := &Temple{
+		root:      root,
+		templates: make(map[string]*Template),
+	}
+	err := temple.Reload()
+	return temple, err
 }
 
 // Template represents a single temple Template.

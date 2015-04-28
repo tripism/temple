@@ -12,10 +12,10 @@ Create a file structure that looks something like this:
 
 ```
 /templates
-  /home                 // tpl["home"]
-    /welcome            // tpl["home.welcome"]
+  /home                 // tpl.Get("home")
+    /welcome            // tpl.Get("home.welcome")
       content.temple
-  /about                // tpl["about"]
+  /about                // tpl.Get("about")
     content.temple
   base.temple           // base file for everything
   copyright.temple      // partial available to base, welcome and about
@@ -65,7 +65,7 @@ templates, and call the `Execute` method:
 
 ```
 http.HandleFunc("/home/welcome", func(w http.ResponseWriter, r *http.Request) {
-	if err := tpl["home.welcome"].Execute(w, nil); err != nil {
+	if err := tpl.Get("home.welcome").Execute(w, nil); err != nil {
     // TODO: handle error
   }
 })
