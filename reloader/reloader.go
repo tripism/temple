@@ -7,12 +7,15 @@ import (
 	"gopkg.in/fsnotify.v1"
 )
 
+// Reloader watches for changing files and calls Reload
+// on a Temple.
 type Reloader struct {
 	t        *temple.Temple
 	watcher  *fsnotify.Watcher
 	stopchan chan struct{}
 }
 
+// New creates a new Reloader.
 func New(t *temple.Temple) (*Reloader, error) {
 	r := &Reloader{t: t}
 	var err error
@@ -34,7 +37,7 @@ func New(t *temple.Temple) (*Reloader, error) {
 	}()
 
 	for _, file := range t.Files() {
-		log.Println("temple.reloader: adding", file)
+		log.Println("temple.reloader: watching", file)
 		if err := r.watcher.Add(file); err != nil {
 			r.watcher.Close()
 			return nil, err
@@ -44,6 +47,7 @@ func New(t *temple.Temple) (*Reloader, error) {
 	return r, nil
 }
 
+// Close stops watching the files and cleans things up.
 func (r *Reloader) Close() error {
 	return r.watcher.Close()
 }
