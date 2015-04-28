@@ -31,7 +31,7 @@ Insert the following
 </div>
 ```
 
-#### `welcome/content.temple`
+#### `home/welcome/content.temple`
 
 ```
 Welcome to the site {{ template "copyright" }}
