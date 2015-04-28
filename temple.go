@@ -1,23 +1,23 @@
 package temple
 
 import (
+	"html/template"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
-	"text/template"
 )
 
 const defaultRootTemplateName = "_entry"
 
-// Temple represents a map of Templates with their dot notation
+// Temple represents a map of Templates keyed by their dot notation
 // names.
 type Temple map[string]*Template
 
-// Process walks directories starting at root and generates a Temple
+// New walks directories starting at root and generates a Temple
 // object containing all compiled templates.
-func Process(root string) (Temple, error) {
+func New(root string) (Temple, error) {
 	temple := make(Temple)
 	err := filepath.Walk(root, func(p string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -35,8 +35,8 @@ func Process(root string) (Temple, error) {
 		}
 		name := strings.Replace(rel, "/", ".", -1)
 		// process the template
-		tpl, err := parse(root, p)
-		if err != nil {
+		tpl := &Template{}
+		if err := tpl.parse(root, p); err != nil {
 			return err
 		}
 		temple[name] = tpl
@@ -55,14 +55,6 @@ type Template struct {
 	// RootTemplateName is the name of the template that will be
 	// rendered when Execute is called.
 	RootTemplateName string
-}
-
-func parse(root, path string) (*Template, error) {
-	tpl := &Template{}
-	if err := tpl.parse(root, path); err != nil {
-		return nil, err
-	}
-	return tpl, nil
 }
 
 // Execute applies a parsed template to the specified data object, writing the output to wr.

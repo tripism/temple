@@ -11,7 +11,7 @@ import (
 func TestTemple(t *testing.T) {
 	is := is.New(t)
 
-	tpl, err := temple.Process("test")
+	tpl, err := temple.New("test")
 	is.NoErr(err)
 	is.OK(tpl)
 	is.OK(tpl["site.welcome.about.nested"])
