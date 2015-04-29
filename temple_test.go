@@ -1,19 +1,21 @@
-package temple_test
+package temple
 
 import (
 	"bytes"
+	"log"
 	"testing"
 
 	"github.com/cheekybits/is"
-	"github.com/tripism/temple"
+	//"github.com/tripism/temple"
 )
 
 func TestTemple(t *testing.T) {
 	is := is.New(t)
 
-	tpl, err := temple.New("test")
+	tpl, err := New("test")
 	is.NoErr(err)
 	is.OK(tpl)
+	log.Println(tpl.templates)
 	_, ok := tpl.GetOK("site.welcome.about.nested")
 	is.True(ok)
 

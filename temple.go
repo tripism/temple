@@ -58,6 +58,9 @@ func (t *Temple) Reload() error {
 		if !info.IsDir() {
 			return nil // skip-non directories
 		}
+		if isPartialsDir(p) {
+			return nil // skip partial directories
+		}
 		if root == p {
 			return nil // skip root
 		}
@@ -65,10 +68,10 @@ func (t *Temple) Reload() error {
 		if err != nil {
 			return err
 		}
-		name := strings.Replace(rel, "/", ".", -1)
+		name := nameFromPath(rel)
 		// process the template
 		tpl := &Template{}
-		if err := tpl.parse(root, p); err != nil {
+		if err := tpl.parse(root, p, true); err != nil {
 			return err
 		}
 		t.lock.Lock()
@@ -112,7 +115,7 @@ func (t *Template) Execute(wr io.Writer, data interface{}) error {
 	return t.Template.ExecuteTemplate(wr, t.RootTemplateName, data)
 }
 
-func (t *Template) parse(root, path string) error {
+func (t *Template) parse(root, path string, climbup bool) error {
 	if t.Template == nil {
 		t.Template = template.New(defaultRootTemplateName)
 	}
@@ -125,7 +128,34 @@ func (t *Template) parse(root, path string) error {
 	}
 	for _, item := range items {
 		if item.IsDir() {
-			continue
+
+			// if these are components - load them regardless
+			if isPartialsDir(item.Name()) {
+				down := filepath.Join(path, item.Name())
+
+				// process partials
+				if err := filepath.Walk(down, func(p string, info os.FileInfo, err error) error {
+					if info.IsDir() {
+						return nil
+					}
+					if isTempleFile(p) {
+						relpath, err := filepath.Rel(root, p)
+						if err != nil {
+							return err
+						}
+						name := nameFromPath(relpath)
+						name = templateName(name)
+						if err := t.parseFile(name, p); err != nil {
+							return err
+						}
+					}
+					return nil
+				}); err != nil {
+					return err
+				}
+
+			}
+
 		}
 		if isTempleFile(item.Name()) {
 			name := templateName(item.Name())
@@ -138,31 +168,40 @@ func (t *Template) parse(root, path string) error {
 				t.RootTemplateName = name
 			}
 			filepath := filepath.Join(path, item.Name())
-			t.Files = append(t.Files, filepath)
-			b, err := ioutil.ReadFile(filepath)
-			if err != nil {
+			if err := t.parseFile(name, filepath); err != nil {
 				return err
 			}
-			s := string(b)
-			s = "{{define \"" + name + "\"}}" + s + "{{end}}"
-			_, err = t.Parse(s)
-			if err != nil {
-				return err
-			}
-			t.foundlist[name] = struct{}{}
 		}
 	}
-	relpath, err := filepath.Rel(root, path)
+	if climbup {
+		relpath, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		if relpath != "." {
+			// we haven't reached root - keep climbing
+			up := filepath.Dir(path)
+			if err := t.parse(root, up, climbup); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (t *Template) parseFile(name, path string) error {
+	t.Files = append(t.Files, path)
+	b, err := ioutil.ReadFile(path)
 	if err != nil {
 		return err
 	}
-	if relpath != "." {
-		// we haven't reached root - keep climbing
-		up := filepath.Dir(path)
-		if err := t.parse(root, up); err != nil {
-			return err
-		}
+	s := string(b)
+	s = "{{define \"" + name + "\"}}" + s + "{{end}}"
+	_, err = t.Parse(s)
+	if err != nil {
+		return err
 	}
+	t.foundlist[name] = struct{}{}
 	return nil
 }
 
@@ -175,4 +214,27 @@ func templateName(p string) string {
 	i := strings.Index(p, ".temple")
 	p = strings.ToLower(p[0:i])
 	return p
+}
+
+func nameFromPath(p string) string {
+	if strings.Contains(p, "_") {
+		segs := strings.Split(p, string(filepath.Separator))
+		for i, seg := range segs {
+			if strings.HasPrefix(seg, "_") {
+				segs[i] = strings.TrimPrefix(seg, "_")
+			}
+		}
+		return strings.Join(segs, ".")
+	}
+	return strings.Replace(p, "/", ".", -1)
+}
+
+func isPartialsDir(p string) bool {
+	segs := strings.Split(p, string(filepath.Separator))
+	for _, seg := range segs {
+		if strings.HasPrefix(seg, "_") {
+			return true
+		}
+	}
+	return false
 }

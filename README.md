@@ -2,7 +2,8 @@
 Convention based template abstraction for Golang.
 
   * Each directory is a template made up of many partials
-  * Ancestor partials are inherited and available to children
+  * Ancestors are inherited and available to children
+  * Partials are available to every template
   * Auto-reload: Recompiles templates whenever a dependent file changes
   * Name a file `base.temple` to create master templates
   * Use your own file extensions (as long as `.temple` appears)
@@ -20,6 +21,8 @@ Create a file structure that looks something like this:
     content.temple
   base.temple           // base file for everything
   copyright.temple      // partial available to base, welcome and about
+  /_punctuation
+    period.temple       // shared component
 ```
 
 Insert the following 
@@ -41,7 +44,7 @@ Welcome to the site {{ template "copyright" }}
 #### `about/content.temple`
 
 ```
-{{ template "copyright" }} All about the site
+{{ template "copyright" }} All about the site{{ template "punctuation.period" }}
 ```
 
 #### `copyright.temple`

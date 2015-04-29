@@ -1,1 +1,1 @@
-{{ template "greeting" }} {{ .Name }}.
+{{ template "greeting" }} {{ .Name }}{{ template "site.components.punctuation.fullstop" }}
