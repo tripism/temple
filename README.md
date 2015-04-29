@@ -1,11 +1,11 @@
 # temple
-Directory convention based template inheritance for Golang.
+Convention based template abstraction for Golang.
 
   * Each directory is a template made up of many partials
-  * Parent partials are inherited and available to children
+  * Ancestor partials are inherited and available to children
+  * Auto-reload: Recompiles templates whenever a dependent file changes
   * Name a file `base.temple` to create master templates
   * Use your own file extensions (as long as `.temple` appears)
-  * Autoreload: Recompiles templates whenever a dependent file changes
 
 ## Get started
 
