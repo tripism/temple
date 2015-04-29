@@ -5,7 +5,7 @@ Directory convention based template inheritance for Golang.
   * Parent partials are inherited and available to children
   * Name a file `base.temple` to create master templates
   * Use your own file extensions (as long as `.temple` appears)
-  * Has safe reloader that recompiles templates whenever a file changes
+  * Autoreload: Recompiles templates whenever a dependent file changes
 
 ## Get started
 
