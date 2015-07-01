@@ -15,10 +15,11 @@ const defaultRootTemplateName = "temple"
 // Temple represents a map of Templates keyed by their dot notation
 // names.
 type Temple struct {
-	root      string
-	lock      sync.RWMutex
-	templates map[string]*Template
-	files     []string
+	root       string
+	lock       sync.RWMutex
+	templates  map[string]*Template
+	files      []string
+	onTemplate func(template *template.Template) (*template.Template, error)
 }
 
 // Get gets a Template by name.
@@ -70,7 +71,9 @@ func (t *Temple) Reload() error {
 		}
 		name := nameFromPath(rel)
 		// process the template
-		tpl := &Template{}
+		tpl := &Template{
+			onTemplate: t.onTemplate,
+		}
 		if err := tpl.parse(root, p, true); err != nil {
 			return err
 		}
@@ -89,9 +92,17 @@ func (t *Temple) Reload() error {
 // New walks directories starting at root and generates a Temple
 // object containing all compiled templates.
 func New(root string) (*Temple, error) {
+	return NewOnTemplate(root, nil)
+}
+
+// NewOnTemplate walks directories starting at root and generates a Temple
+// object containing all compiled templates, calling the OnTemplate callback for
+// each template.
+func NewOnTemplate(root string, onTemplate func(template *template.Template) (*template.Template, error)) (*Temple, error) {
 	temple := &Temple{
-		root:      root,
-		templates: make(map[string]*Template),
+		root:       root,
+		templates:  make(map[string]*Template),
+		onTemplate: onTemplate,
 	}
 	err := temple.Reload()
 	return temple, err
@@ -100,7 +111,8 @@ func New(root string) (*Temple, error) {
 // Template represents a single temple Template.
 type Template struct {
 	*template.Template
-	foundlist map[string]struct{}
+	onTemplate func(template *template.Template) (*template.Template, error)
+	foundlist  map[string]struct{}
 	// RootTemplateName is the name of the template that will be
 	// rendered when Execute is called.
 	RootTemplateName string
@@ -118,6 +130,12 @@ func (t *Template) Execute(wr io.Writer, data interface{}) error {
 func (t *Template) parse(root, path string, climbup bool) error {
 	if t.Template == nil {
 		t.Template = template.New(defaultRootTemplateName)
+		if t.onTemplate != nil {
+			var err error
+			if t.Template, err = t.onTemplate(t.Template); err != nil {
+				return err
+			}
+		}
 	}
 	if t.foundlist == nil {
 		t.foundlist = make(map[string]struct{})
