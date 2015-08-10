@@ -244,7 +244,7 @@ func nameFromPath(p string) string {
 		}
 		return strings.Join(segs, ".")
 	}
-	return strings.Replace(p, "/", ".", -1)
+	return strings.Replace(p, string(filepath.Separator), ".", -1)
 }
 
 func isPartialsDir(p string) bool {
