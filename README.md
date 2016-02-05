@@ -75,6 +75,10 @@ http.HandleFunc("/home/welcome", func(w http.ResponseWriter, r *http.Request) {
 })
 ```
 
+### Handling functions
+
+Since Temple pre-preocesses tempaltes, you need to specify any functions up-front via the `temple.NewFuncs` method call.
+
 ## Using the reloader
 
 Use `temple.New` as normal:

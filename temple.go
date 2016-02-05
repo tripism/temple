@@ -19,6 +19,25 @@ type Temple struct {
 	lock      sync.RWMutex
 	templates map[string]*Template
 	files     []string
+	funcs     template.FuncMap
+}
+
+// New walks directories starting at root and generates a Temple
+// object containing all compiled templates.
+func New(root string) (*Temple, error) {
+	return NewFuncs(root, nil)
+}
+
+// NewFuncs creates a new Temple and sets the template functions
+// for all templates.
+func NewFuncs(root string, funcs template.FuncMap) (*Temple, error) {
+	temple := &Temple{
+		root:      root,
+		templates: make(map[string]*Template),
+		funcs:     funcs,
+	}
+	err := temple.Reload()
+	return temple, err
 }
 
 // Get gets a Template by name.
@@ -70,7 +89,7 @@ func (t *Temple) Reload() error {
 		}
 		name := nameFromPath(rel)
 		// process the template
-		tpl := &Template{}
+		tpl := &Template{funcs: t.funcs}
 		if err := tpl.parse(root, p, true); err != nil {
 			return err
 		}
@@ -86,17 +105,6 @@ func (t *Temple) Reload() error {
 	return nil
 }
 
-// New walks directories starting at root and generates a Temple
-// object containing all compiled templates.
-func New(root string) (*Temple, error) {
-	temple := &Temple{
-		root:      root,
-		templates: make(map[string]*Template),
-	}
-	err := temple.Reload()
-	return temple, err
-}
-
 // Template represents a single temple Template.
 type Template struct {
 	*template.Template
@@ -106,6 +114,14 @@ type Template struct {
 	RootTemplateName string
 	// Files represents the files that make up this template.
 	Files []string
+	// funcs is the template.FuncMap to use for all templates.
+	funcs template.FuncMap
+}
+
+// Funcs panics in Temple because of the pre-processing that occurs.
+// Functions must instead be specified up-front via NewFuncs.
+func (t *Template) Funcs(funcMap template.FuncMap) *Template {
+	panic("temple: Funcs not supported, use NewFuncs instead")
 }
 
 // Execute applies a parsed template to the specified data object, writing the output to wr.
@@ -117,7 +133,7 @@ func (t *Template) Execute(wr io.Writer, data interface{}) error {
 
 func (t *Template) parse(root, path string, climbup bool) error {
 	if t.Template == nil {
-		t.Template = template.New(defaultRootTemplateName)
+		t.Template = template.New(defaultRootTemplateName).Funcs(t.funcs)
 	}
 	if t.foundlist == nil {
 		t.foundlist = make(map[string]struct{})
